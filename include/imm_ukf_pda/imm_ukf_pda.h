@@ -33,8 +33,6 @@
 
 #include <tf/transform_listener.h>
 
-#include <vector_map/vector_map.h>
-
 #include "autoware_msgs/DetectedObject.h"
 #include "autoware_msgs/DetectedObjectArray.h"
 
@@ -81,8 +79,6 @@ private:
   double lane_direction_chi_threshold_;
   double nearest_lane_distance_threshold_;
   std::string vectormap_frame_;
-  vector_map::VectorMap vmap_;
-  std::vector<vector_map_msgs::Lane> lanes_;
 
   double merge_distance_threshold_;
   const double CENTROID_DISTANCE = 0.2;//distance to consider centroids the same

@@ -73,22 +73,11 @@ void ImmUkfPda::run()
   pub_object_array_ = node_handle_.advertise<autoware_msgs::DetectedObjectArray>("objects_out", 1);
   sub_detected_array_ = node_handle_.subscribe("detection/lidar_detector/objects", 1, &ImmUkfPda::callback, this);
 
-  if (use_vectormap_)
-  {
-    vmap_.subscribe(private_nh_, vector_map::Category::POINT |
-                                 vector_map::Category::NODE  |
-                                 vector_map::Category::LANE, 1);
-  }
 }
 
 void ImmUkfPda::callback(const autoware_msgs::DetectedObjectArray& input)
 {
   input_header_ = input.header;
-
-  if(use_vectormap_)
-  {
-    checkVectormapSubscription();
-  }
 
   bool success = updateNecessaryTransform();
   if (!success)
@@ -111,22 +100,6 @@ void ImmUkfPda::callback(const autoware_msgs::DetectedObjectArray& input)
   }
 }
 
-void ImmUkfPda::checkVectormapSubscription()
-{
-  if (use_vectormap_ && !has_subscribed_vectormap_)
-  {
-    lanes_ = vmap_.findByFilter([](const vector_map_msgs::Lane& lane) { return true; });
-    if (lanes_.empty())
-    {
-      ROS_INFO("Has not subscribed vectormap");
-    }
-    else
-    {
-      has_subscribed_vectormap_ = true;
-    }
-  }
-}
-
 bool ImmUkfPda::updateNecessaryTransform()
 {
   bool success = true;
@@ -139,19 +112,6 @@ bool ImmUkfPda::updateNecessaryTransform()
   {
     ROS_ERROR("%s", ex.what());
     success = false;
-  }
-  if (use_vectormap_ && has_subscribed_vectormap_)
-  {
-    try
-    {
-      tf_listener_.waitForTransform(vectormap_frame_, tracking_frame_, ros::Time(0), ros::Duration(1.0));
-      tf_listener_.lookupTransform(vectormap_frame_, tracking_frame_, ros::Time(0), tracking_frame2lane_frame_);
-      tf_listener_.lookupTransform(tracking_frame_, vectormap_frame_, ros::Time(0), lane_frame2tracking_frame_);
-    }
-    catch (tf::TransformException ex)
-    {
-      ROS_ERROR("%s", ex.what());
-    }
   }
   return success;
 }
@@ -280,25 +240,23 @@ bool ImmUkfPda::updateDirection(const double smallest_nis, const autoware_msgs::
 bool ImmUkfPda::storeObjectWithNearestLaneDirection(const autoware_msgs::DetectedObject& in_object,
                                                  autoware_msgs::DetectedObject& out_object)
 {
-  geometry_msgs::Pose lane_frame_pose = getTransformedPose(in_object.pose, tracking_frame2lane_frame_);
+  //geometry_msgs::Pose lane_frame_pose = getTransformedPose(in_object.pose, tracking_frame2lane_frame_);
   double min_dist = std::numeric_limits<double>::max();
-
   double min_yaw = 0;
-  for (auto const& lane : lanes_)
-  {
-    vector_map_msgs::Node node = vmap_.findByKey(vector_map::Key<vector_map_msgs::Node>(lane.bnid));
-    vector_map_msgs::Point point = vmap_.findByKey(vector_map::Key<vector_map_msgs::Point>(node.pid));
-    double distance = std::sqrt(std::pow(point.bx - lane_frame_pose.position.y, 2) +
-                                std::pow(point.ly - lane_frame_pose.position.x, 2));
-    if (distance < min_dist)
-    {
-      min_dist = distance;
-      vector_map_msgs::Node front_node = vmap_.findByKey(vector_map::Key<vector_map_msgs::Node>(lane.fnid));
-      vector_map_msgs::Point front_point = vmap_.findByKey(vector_map::Key<vector_map_msgs::Point>(front_node.pid));
-      min_yaw = std::atan2((front_point.bx - point.bx), (front_point.ly - point.ly));
-    }
-  }
-
+  //for (auto const& lane : lanes_)
+  //{
+    //vector_map_msgs::Node node = vmap_.findByKey(vector_map::Key<vector_map_msgs::Node>(lane.bnid));
+    //vector_map_msgs::Point point = vmap_.findByKey(vector_map::Key<vector_map_msgs::Point>(node.pid));
+    //double distance = std::sqrt(std::pow(point.bx - lane_frame_pose.position.y, 2) +
+    //                            std::pow(point.ly - lane_frame_pose.position.x, 2));
+   // if (distance < min_dist)
+   // {
+   //   min_dist = distance;
+      //vector_map_msgs::Node front_node = vmap_.findByKey(vector_map::Key<vector_map_msgs::Node>(lane.fnid));
+      //vector_map_msgs::Point front_point = vmap_.findByKey(vector_map::Key<vector_map_msgs::Point>(front_node.pid));
+      //min_yaw = std::atan2((front_point.bx - point.bx), (front_point.ly - point.ly));
+  //  }
+ // }
   bool success = false;
   if (min_dist < nearest_lane_distance_threshold_)
   {
